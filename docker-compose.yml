@@ -1,0 +1,78 @@
+version: '2'
+
+services:
+  nginx-proxy:
+    image: jwilder/nginx-proxy:latest
+    container_name: nginx-proxy
+    ports:
+    - "80:80"
+    - "443:443"
+    expose:
+    - 80
+    - 443
+    volumes:
+    - /var/run/docker.sock:/tmp/docker.sock:ro
+    - ./nginx-proxy/logs:/var/log/nginx
+    - ./ssl:/etc/nginx/certs
+
+  magento:
+    image: magento-nginx-php56:latest
+    container_name: magento
+    depends_on:
+    - nginx-proxy
+    - memcached
+    - mysql
+    - maildev
+    environment:
+    - VIRTUAL_HOST=joneal.magento.dev
+    - VIRTUAL_PROTO=https
+    - HTTPS_METHOD=nohttp
+    - DOMAIN=joneal.magento.dev
+    - MAILDEV_HOST=maildev
+    - MAILDEV_PORT=25
+    - MEMCACHED_PORT=11211
+    - MEMCACHED_HOST=memcached
+    expose:
+    - 443
+    volumes:
+    - ./magento/nginx-logs:/var/log/nginx
+    - ./magento/code:/var/www/html
+    - ./ssl:/etc/ssl
+    - ./magento/cron:/var/spool/cron
+
+  mysql:
+    image: mysql:5.6
+    container_name: mysql
+    environment:
+    - MYSQL_ROOT_PASSWORD=toor
+    - MYSQL_USER=magento
+    - MYSQL_PASSWORD=magento
+    - MYSQL_DATABASE=magento
+    expose:
+    - 3306
+    ports:
+    - "3306:3306"
+    volumes:
+    - mage_mysql:/var/lib/mysql
+
+  memcached:
+    image: memcached:latest
+    container_name: memcached
+    expose:
+    - 11211
+
+  maildev:
+    image: djfarrelly/maildev:latest
+    container_name: maildev
+    depends_on:
+    - nginx-proxy
+    environment:
+    - VIRTUAL_HOST=joneal.mail.dev
+    expose:
+    - 80
+    - 25
+    ports:
+    - "25:25"
+
+volumes:
+  mage_mysql:
